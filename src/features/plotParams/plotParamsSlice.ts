@@ -112,10 +112,10 @@ export const selectTSValues = (state: RootState) => {
 		} else if (params.addPrinMode === AddPrinMode.PMT_PERCENT) {
 		  pPmtAmt += ((params.addPrinPct / 100) * minPmt)
 		}
-		const nextBal = lastVals.balance - pPmtAmt
+		const nextBal = Math.max(lastVals.balance - pPmtAmt, 0)
 		balanceArr.push({
 			balance: nextBal,
-			principal: pPmtAmt,
+			principal: Math.min(pPmtAmt, lastVals.balance),
 			interest: interest,
 			totalInt: lastVals.totalInt + interest,
 			totalPrincipal: lastVals.totalPrincipal + pPmtAmt
