@@ -101,7 +101,7 @@ export const selectTSValues = (state: RootState) => {
 		}
 	];
 	let i = 0;
-	while (balanceArr[balanceArr.length - 1].balance > 0) {
+	while (balanceArr[balanceArr.length - 1].balance >= 0.01) {
 		const lastVals = balanceArr[balanceArr.length - 1];
 		const interest = lastVals.balance * moInt
 		let pPmtAmt = minPmt - interest

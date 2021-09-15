@@ -24,7 +24,8 @@ import {
   Tabs,
   TextField,
   Toolbar,
-  Typography
+  Typography,
+  Divider
 } from '@material-ui/core';
 import {
   AddPrinMode,
@@ -112,6 +113,9 @@ const PlotParamInputs: React.FC = () => {
   const bal = useAppSelector(selectBalance);
   const intRate = useAppSelector(selectIntRate);
   const remMoPmts = useAppSelector(selectRemMoPmts);
+  const minMoPmt = useAppSelector(selectMinMonthlyPmt);
+
+  const minMoPmtTxt = minMoPmt ? minMoPmt.toFixed(2) : '--.--'
 
   const dispatch = useAppDispatch();
 
@@ -163,22 +167,21 @@ const PlotParamInputs: React.FC = () => {
           />
         </Grid>
         <Grid item xs={12}>
+          <Divider />
+        </Grid>
+        <Grid item xs={12}>
+          <div>Min Monthly Payment: ${minMoPmtTxt}</div>
+        </Grid>
+        <Grid item xs={12}>
+          <Divider />
+        </Grid>
+        <Grid item xs={12}>
           <AddPrincipalInputs />
         </Grid>
       </Grid>
     </Paper>
   );
 };
-
-const CalcValues: React.FC = () => {
-  const minMoPmt = useAppSelector(selectMinMonthlyPmt);
-
-  return (
-    <Grid container spacing={2}>
-      <h4>Min Monthly Pmt: ${minMoPmt.toFixed(2)}</h4>
-    </Grid>
-  );
-}
 
 const PlotViews: React.FC = () => {
   const dataTs = useAppSelector(selectTSValues);
@@ -321,13 +324,8 @@ function App() {
       <Toolbar />
       <Container>
         <Grid container spacing={2}>
-          <Grid item container md={3} direction="column" justifyContent="flex-start">
-            <Grid item>
-              <PlotParamInputs />
-            </Grid>
-            <Grid item>
-              <CalcValues />
-            </Grid>
+          <Grid item md={3}>
+            <PlotParamInputs />
           </Grid>
           <Grid item md={9}>
             <Tabs value={tabIdx} onChange={(_, nv) => setTabIdx(nv)}>
