@@ -27,6 +27,7 @@ import {
   Typography,
   Divider
 } from '@material-ui/core';
+import { GitHub } from '@material-ui/icons';
 import {
   AddPrinMode,
   setAddPrinAmt,
@@ -316,11 +317,14 @@ function App() {
     <>
       <AppBar position="static">
         <Toolbar>
-          <Typography variant="h4">
+          <Typography variant="h4" style={{flexGrow: 1}}>
               Amortization Schedule Calculator
-            </Typography>
-          </Toolbar>
-        </AppBar>
+          </Typography>
+          <a style={{color: "white"}} href="https://gfpeltier.github.io/amortization-calc">
+            <GitHub fontSize="large" />
+          </a>
+        </Toolbar>
+      </AppBar>
       <Toolbar />
       <Container>
         <Grid container spacing={2}>
