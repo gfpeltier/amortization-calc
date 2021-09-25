@@ -7,6 +7,7 @@ export enum AddPrinMode {
 	PMT_PERCENT = 'PMT_PERCENT'
 }
 
+// Add cmpToBase boolean flag
 export interface PlotParams {
 	balance: number,
 	intRate: number,
@@ -14,6 +15,7 @@ export interface PlotParams {
 	addPrinMode: AddPrinMode,
 	addPrinPct: number,
 	addPrinAmt: number,
+	cmpToBase: boolean,
 }
 
 const initialState: PlotParams = {
@@ -23,6 +25,7 @@ const initialState: PlotParams = {
 	addPrinMode: AddPrinMode.PRIN_PERCENT,
 	addPrinPct: 0,
 	addPrinAmt: 0,
+	cmpToBase: false,
 };
 
 export const plotParamsSlice = createSlice({
@@ -47,6 +50,9 @@ export const plotParamsSlice = createSlice({
 		setAddPrinAmt: (state, action: PayloadAction<number>) => {
 			state.addPrinAmt = action.payload;
 		},
+		setCmpToBase: (state, action: PayloadAction<boolean>) => {
+			state.cmpToBase = action.payload;
+		},
 	}
 });
 
@@ -56,7 +62,8 @@ export const {
 	setRemMoPmts,
 	setAddPrinMode,
 	setAddPrinPct,
-	setAddPrinAmt
+	setAddPrinAmt,
+	setCmpToBase,
 } = plotParamsSlice.actions;
 
 export const selectPlotParams = (state: RootState) => state.plotParams;
@@ -73,56 +80,87 @@ export const selectPrinPct = (state: RootState) => state.plotParams.addPrinPct;
 
 export const selectPrinAmt = (state: RootState) => state.plotParams.addPrinAmt;
 
+export const selectCmpToBase = (state: RootState) => state.plotParams.cmpToBase;
+
 export const selectMinMonthlyPmt = (state: RootState) => {
 	const params = state.plotParams;
 	const moInt = params.intRate / 100 / 12;
 	return params.balance * (moInt * Math.pow(moInt + 1, params.remMoPmt)) / (Math.pow(1 + moInt, params.remMoPmt) - 1)
 }
 
-export interface AggregateValues {
-	balance: number,
-	interest: number,
+export interface PmtValues {
+	startBalance: number,
+	endBalance: number,
 	principal: number,
-	totalInt: number,
-	totalPrincipal: number
+	interest: number
 }
 
-export const selectTSValues = (state: RootState) => {
+function assessAddlPrincipal(basePmtVals: PmtValues, params: PlotParams): PmtValues {
+	const addlPmt = Object.assign({}, basePmtVals);
+
+	let addlPrin = 0;
+	if (params.addPrinMode === AddPrinMode.STATIC) {
+		addlPrin = params.addPrinAmt;
+	} else if (params.addPrinMode === AddPrinMode.PRIN_PERCENT) {
+		addlPrin = ((params.addPrinPct / 100) * basePmtVals.principal)
+	} else if (params.addPrinMode === AddPrinMode.PMT_PERCENT) {
+		addlPrin = ((params.addPrinPct / 100) * (basePmtVals.principal + basePmtVals.interest))
+	}
+
+	addlPmt.principal += addlPrin;
+	addlPmt.endBalance = basePmtVals.startBalance - addlPmt.principal;
+
+	return addlPmt;
+}
+
+function calcPmtVals(startBal: number, intRate: number, minPmt: number): PmtValues {
+	const moInt = intRate / 100 / 12;
+	const int = startBal * moInt;
+	const prin = minPmt - int;
+
+	return {
+		startBalance: startBal,
+		endBalance: startBal - prin,
+		principal: prin,
+		interest: int
+	};
+}
+
+export const selectAdjPmtValues = (state: RootState): PmtValues[] => {
 	const minPmt = selectMinMonthlyPmt(state);
 	const params = state.plotParams;
-	const moInt = params.intRate / 100 / 12;
-	const balanceArr: AggregateValues[] = [
-		{
-			balance: params.balance,
-			principal: minPmt - (params.balance * moInt),
-			interest: params.balance * moInt,
-			totalInt: 0,
-			totalPrincipal: 0
-		}
-	];
-	let i = 0;
-	while (balanceArr[balanceArr.length - 1].balance >= 0.01) {
-		const lastVals = balanceArr[balanceArr.length - 1];
-		const interest = lastVals.balance * moInt
-		let pPmtAmt = minPmt - interest
-		if (params.addPrinMode === AddPrinMode.STATIC) {
-			pPmtAmt += params.addPrinAmt
-		} else if (params.addPrinMode === AddPrinMode.PRIN_PERCENT) {
-			pPmtAmt += ((params.addPrinPct / 100) * pPmtAmt)
-		} else if (params.addPrinMode === AddPrinMode.PMT_PERCENT) {
-		  pPmtAmt += ((params.addPrinPct / 100) * minPmt)
-		}
-		const nextBal = Math.max(lastVals.balance - pPmtAmt, 0)
-		balanceArr.push({
-			balance: nextBal,
-			principal: Math.min(pPmtAmt, lastVals.balance),
-			interest: interest,
-			totalInt: lastVals.totalInt + interest,
-			totalPrincipal: lastVals.totalPrincipal + pPmtAmt
-		});
+	const adjVals = [ assessAddlPrincipal(calcPmtVals(params.balance, params.intRate, minPmt), params) ];
+	
+	let i = 1;
+	while(adjVals[adjVals.length - 1].startBalance >= 0.01) {
+		const cPmt = calcPmtVals(adjVals[adjVals.length - 1].endBalance, params.intRate, minPmt);
+		cPmt.startBalance = adjVals[adjVals.length - 1].endBalance;
+		adjVals.push(assessAddlPrincipal(cPmt, state.plotParams));
 		i++;
 	}
-	return balanceArr.slice(1, balanceArr.length);
+
+	return adjVals;
+}
+
+export const selectBasePmtValues = (state: RootState): PmtValues[] => {
+	const minPmt = selectMinMonthlyPmt(state);
+	const params = state.plotParams;
+	const pmtsArr: PmtValues[] = [ calcPmtVals(params.balance, params.intRate, minPmt) ];
+	
+	let i = 1;
+	while (pmtsArr[pmtsArr.length - 1].startBalance >= 0.01) {
+		const lastVals = pmtsArr[pmtsArr.length - 1];
+		pmtsArr.push(calcPmtVals(lastVals.endBalance, params.intRate, minPmt));
+		i++;
+	}
+	return pmtsArr;
+}
+
+export const selectInterestSavings = (state: RootState): number[] => {
+	const baseVals = selectBasePmtValues(state);
+	const adjVals = selectAdjPmtValues(state);
+
+	return baseVals.map((pv, i) => (i < adjVals.length) ? pv.interest - adjVals[i].interest : pv.interest)
 }
 
 export default plotParamsSlice.reducer;
