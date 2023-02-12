@@ -227,7 +227,7 @@ const PlotViews: React.FC = () => {
 
 const PaymentTable: React.FC = () => {
   const initBal = useAppSelector(selectBalance);
-  const monthlyData = useAppSelector(selectBasePmtValues);
+  const monthlyData = useAppSelector(selectAdjPmtValues);
 
   const currency = (n: number): string => '$' + n.toFixed(2)
 

@@ -110,13 +110,18 @@ function assessAddlPrincipal(basePmtVals: PmtValues, params: PlotParams): PmtVal
 	addlPmt.principal += addlPrin;
 	addlPmt.endBalance = basePmtVals.startBalance - addlPmt.principal;
 
+	if (addlPmt.endBalance < 0) {
+		addlPmt.principal = addlPmt.principal - Math.abs(addlPmt.endBalance);
+		addlPmt.endBalance = 0;
+	}
+
 	return addlPmt;
 }
 
 function calcPmtVals(startBal: number, intRate: number, minPmt: number): PmtValues {
 	const moInt = intRate / 100 / 12;
-	const int = startBal * moInt;
-	const prin = minPmt - int;
+	const int = Math.max(0, startBal * moInt);
+	const prin = Math.min(startBal, minPmt - int);
 
 	return {
 		startBalance: startBal,
@@ -131,12 +136,10 @@ export const selectAdjPmtValues = (state: RootState): PmtValues[] => {
 	const params = state.plotParams;
 	const adjVals = [ assessAddlPrincipal(calcPmtVals(params.balance, params.intRate, minPmt), params) ];
 	
-	let i = 1;
-	while(adjVals[adjVals.length - 1].startBalance >= 0.01) {
+	while(adjVals[adjVals.length - 1].endBalance >= 0.01) {
 		const cPmt = calcPmtVals(adjVals[adjVals.length - 1].endBalance, params.intRate, minPmt);
 		cPmt.startBalance = adjVals[adjVals.length - 1].endBalance;
 		adjVals.push(assessAddlPrincipal(cPmt, state.plotParams));
-		i++;
 	}
 
 	return adjVals;
@@ -146,12 +149,10 @@ export const selectBasePmtValues = (state: RootState): PmtValues[] => {
 	const minPmt = selectMinMonthlyPmt(state);
 	const params = state.plotParams;
 	const pmtsArr: PmtValues[] = [ calcPmtVals(params.balance, params.intRate, minPmt) ];
-	
-	let i = 1;
-	while (pmtsArr[pmtsArr.length - 1].startBalance >= 0.01) {
+
+	while  (pmtsArr[pmtsArr.length - 1].endBalance >= 0.01) {
 		const lastVals = pmtsArr[pmtsArr.length - 1];
 		pmtsArr.push(calcPmtVals(lastVals.endBalance, params.intRate, minPmt));
-		i++;
 	}
 	return pmtsArr;
 }
